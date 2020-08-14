@@ -7,8 +7,8 @@ Multi-process web server
 
 или
 
-`cmake .`
-`make`
+`cmake .
+make`
 
 Запуск:
 
