@@ -1,3 +1,2 @@
 #!/usr/bin/env bash
-cmake .
-make
+./final -h localhost -p 11777 -d /tmp/
