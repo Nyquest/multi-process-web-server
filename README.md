@@ -3,13 +3,13 @@ Multi-process web server
 
 Сборка:
 
-./_run.sh
+`./_run.sh`
 
 или
 
-cmake .
-make
+`cmake .`
+`make`
 
 Запуск:
 
-./final
+`./final`
