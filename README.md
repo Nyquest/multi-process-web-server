@@ -1,9 +1,9 @@
 # multi-process-web-server
 Multi-process web server
 
-Сборка:
+*Сборка*
 
-`./_run.sh`
+`./_build.sh`
 
 или
 
@@ -11,6 +11,10 @@ Multi-process web server
 
 `make`
 
-Запуск:
+*Запуск*
 
-`./final`
+`./_run.sh`
+
+или
+
+`./final -h <ip> -p <port> -d <directory>`
