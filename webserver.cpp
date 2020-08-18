@@ -1,8 +1,71 @@
 #include<iostream>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/stat.h>
 
 using namespace std;
+
+int masterProcess() {
+
+	while(1) {
+		cout << "Master " << getpid() << " heartbeat" << endl;
+		usleep(1000000);
+	}
+
+
+	int status = 0;
+	sigset_t  sigset;
+
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGQUIT);
+	sigaddset(&sigset, SIGINT);
+	sigaddset(&sigset, SIGTERM);
+	sigaddset(&sigset, SIGCHLD);
+
+	sigprocmask(SIG_BLOCK, &sigset, NULL);
+ 
+	int children = 0;
+	pid_t pid;
+
+    // while(1) {
+
+    // 	if(children <= 5) {
+    // 		usleep(10 * 1000 * 1000);
+    // 		pid = fork();
+    // 		++children;
+    // 	}
+
+    // 	switch(pid) {
+    // 		case -1:
+    // 			cerr << "Can't fork: " << errno << endl;
+    // 			break;
+    // 		case 0:
+    // 			cout << "Worker " << getpid() << " heartbeat" << endl;
+				// usleep(1000000);
+    // 			break;
+    // 	}
+
+
+    // }
+
+
+	return status;
+}
+
+void demonize() {
+	umask(0);
+	int sid = setsid();
+	if(sid < 0) {
+		cerr << "sid = " << sid << endl;
+	}
+	int chdir_val = chdir("/");
+	if(chdir_val < 0) {
+		cerr << "chdir = " << chdir_val << endl;
+	}
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
+}
 
 int main(int argc, char *argv[]) {
 	cout << "***************************" << endl;
@@ -44,31 +107,22 @@ int main(int argc, char *argv[]) {
 	pid = fork();
 
 	switch(pid) {
-		case -1:
+		case -1: {
 			cout << "Error: " << strerror(errno) << endl;
 			return -1;
-		case 0:
+		}
+		case 0: {
+			cout << "Daemon launched with pid " << getpid() << endl;
+
+			demonize();
+
+			return masterProcess();
+		}
+			
+		default: {
 			cout << "Launcher worked." << endl;
-			//exit(EXIT_SUCCESS);
 			return 0;
-		default:
-			cout << "Daemon launched with pid " << pid << endl;
-			// umask(0);
-			// int sid = setsid();
-			// if(sid < 0) {
-			// 	cout << "sid = " << sid << endl;
-			// }
-			// int chdir_val = chdir("/");
-			// if(chdir_val < 0) {
-			// 	cout << "chdir = " << chdir_val << endl;
-			// }
-			// close(STDIN_FILENO);
-	  //       close(STDOUT_FILENO);
-	  //       close(STDERR_FILENO);
-			// while(1) {
-			// 	cout << "Daemon " << pid << " heartbeat" << endl;
-			// 	usleep(1000000);
-			// }
-			return 0;
+		}
+			
 	}
 }
