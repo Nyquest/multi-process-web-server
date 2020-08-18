@@ -2,15 +2,22 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <fstream>
+
+// #define LOG_FILE "/var/log/webserver.log"
+#define LOG_FILE "/tmp/webserver.log"
 
 using namespace std;
 
+std::ofstream log (LOG_FILE);
+
+int workerProcess() {
+	return 0;
+}
+
 int masterProcess() {
 
-	while(1) {
-		cout << "Master " << getpid() << " heartbeat" << endl;
-		usleep(1000000);
-	}
+	log << "Master PID " << getpid() << endl;
 
 
 	int status = 0;
@@ -27,26 +34,30 @@ int masterProcess() {
 	int children = 0;
 	pid_t pid;
 
-    // while(1) {
+    while(1) {
 
-    // 	if(children <= 5) {
-    // 		usleep(10 * 1000 * 1000);
-    // 		pid = fork();
-    // 		++children;
-    // 	}
+    	if(children <= 5) {
+    		usleep(10 * 1000 * 1000);
+    		pid = fork();
+    		++children;
 
-    // 	switch(pid) {
-    // 		case -1:
-    // 			cerr << "Can't fork: " << errno << endl;
-    // 			break;
-    // 		case 0:
-    // 			cout << "Worker " << getpid() << " heartbeat" << endl;
-				// usleep(1000000);
-    // 			break;
-    // 	}
+    		switch(pid) {
+    			case -1: {
+    				log << "Can't fork: " << errno << endl;
+    				break;
+    			}
+    			case 0: {
+    				log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << endl;
+    				usleep(1000000);
+    				exit(workerProcess());
+    			}
+    		}
+    		
+    	}
 
+    	usleep(10 * 1000 * 1000);
 
-    // }
+    }
 
 
 	return status;
@@ -69,7 +80,7 @@ void demonize() {
 
 int main(int argc, char *argv[]) {
 	cout << "***************************" << endl;
-	cout << "WebServer 0.0.2 starting..." << endl;
+	cout << "WebServer 0.3.0 starting..." << endl;
 	cout << "***************************" << endl;
 	int key = 0;
 	const char *host = "localhost";
