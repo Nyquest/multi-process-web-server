@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 #include <time.h>
+#include <thread>
 
 #define VERSION "0.3.2"
 #define LOG_FILE "webserver.log"
@@ -12,6 +13,8 @@
 
 using namespace std;
 namespace fs = std::filesystem;
+
+const auto processor_count = std::thread::hardware_concurrency();
 
 static std::ofstream log (LOG_FILE);
 
@@ -28,6 +31,8 @@ void writePid(pid_t pid) {
 }
 
 int workerProcess() {
+	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << endl;
+	usleep(1 * 1000 * 1000);
 	return 0;
 }
 
@@ -46,6 +51,8 @@ int masterProcess() {
 	log << "Master PID " << master_pid << endl;
 
 	log << "Current path: " << fs::current_path() << endl;
+
+	log << "Processor count: " << processor_count << endl;
 
 	writePid(master_pid);
 
@@ -66,8 +73,8 @@ int masterProcess() {
 
     while(1) {
 
-    	if(children < 5) {
-    		usleep(10 * 1000 * 1000);
+    	if(children < processor_count) {
+    		usleep(1 * 1000 * 1000);
     		pid = fork();
     		++children;
 
@@ -77,14 +84,13 @@ int masterProcess() {
     				break;
     			}
     			case 0: {
-    				log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << endl;
-    				usleep(1000000);
     				exit(workerProcess());
     			}
     		}
     		
     	}
 
+    	log << "children = " << children << endl;
     	usleep(10 * 1000 * 1000);
 
     }
