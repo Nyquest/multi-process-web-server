@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <fstream>
 
+#define VERSION "0.3.1"
 // #define LOG_FILE "/var/log/webserver.log"
 #define LOG_FILE "/tmp/webserver.log"
 
@@ -80,7 +81,7 @@ void demonize() {
 
 int main(int argc, char *argv[]) {
 	cout << "***************************" << endl;
-	cout << "WebServer 0.3.0 starting..." << endl;
+	cout << "WebServer " << VERSION << " starting..." << endl;
 	cout << "***************************" << endl;
 	int key = 0;
 	const char *host = "localhost";
