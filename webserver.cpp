@@ -3,14 +3,28 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <fstream>
+#include <filesystem>
 
-#define VERSION "0.3.1"
-// #define LOG_FILE "/var/log/webserver.log"
-#define LOG_FILE "/tmp/webserver.log"
+#define VERSION "0.3.2"
+#define LOG_FILE "webserver.log"
+#define PID_FILE "webserver.pid"
 
 using namespace std;
+namespace fs = std::filesystem;
 
-std::ofstream log (LOG_FILE);
+static std::ofstream log (LOG_FILE);
+
+void writePid(pid_t pid) {
+	FILE *f;
+	f = fopen(PID_FILE, "w+");
+	if(f){
+		fprintf(f, "%u", pid);
+		fclose(f);
+		log << "Master PID " << pid << " written" << endl;
+	} else {
+		log << "Master PID write error: " << errno << " " << strerror(errno) << endl;
+	}
+}
 
 int workerProcess() {
 	return 0;
@@ -18,7 +32,13 @@ int workerProcess() {
 
 int masterProcess() {
 
-	log << "Master PID " << getpid() << endl;
+	pid_t master_pid = getpid();
+
+	log << "Master PID " << master_pid << endl;
+
+	log << "Current path: " << fs::current_path() << endl;
+
+	writePid(master_pid);
 
 
 	int status = 0;
@@ -37,7 +57,7 @@ int masterProcess() {
 
     while(1) {
 
-    	if(children <= 5) {
+    	if(children < 5) {
     		usleep(10 * 1000 * 1000);
     		pid = fork();
     		++children;
@@ -70,10 +90,10 @@ void demonize() {
 	if(sid < 0) {
 		cerr << "sid = " << sid << endl;
 	}
-	int chdir_val = chdir("/");
-	if(chdir_val < 0) {
-		cerr << "chdir = " << chdir_val << endl;
-	}
+	// int chdir_val = chdir("/");
+	// if(chdir_val < 0) {
+	// 	cerr << "chdir = " << chdir_val << endl;
+	// }
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
@@ -83,6 +103,7 @@ int main(int argc, char *argv[]) {
 	cout << "***************************" << endl;
 	cout << "WebServer " << VERSION << " starting..." << endl;
 	cout << "***************************" << endl;
+	cout << "Current path: " << fs::current_path() << endl;
 	int key = 0;
 	const char *host = "localhost";
 	int port = 11777;

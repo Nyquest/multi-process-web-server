@@ -13,7 +13,7 @@ Multi-process web server
 
 *Запуск*
 
-`./_run.sh`
+`./_start.sh`
 
 или
 

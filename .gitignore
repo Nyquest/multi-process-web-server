@@ -30,8 +30,12 @@
 *.exe
 *.out
 *.app
-webserver
 
 # CMake
 CMakeFiles
 CMakeCache.txt
+
+# Web Server
+webserver
+webserver.log
+webserver.pid

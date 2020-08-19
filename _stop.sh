@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-kill -9 $(ps -ef | grep webserver | awk '{print $2}')
+kill -9 $( cat webserver.pid )
