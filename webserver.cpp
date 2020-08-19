@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <fstream>
 #include <filesystem>
+#include <time.h>
 
 #define VERSION "0.3.2"
 #define LOG_FILE "webserver.log"
@@ -33,6 +34,14 @@ int workerProcess() {
 int masterProcess() {
 
 	pid_t master_pid = getpid();
+
+	time_t my_time = time(NULL);
+
+	log << "------------------------" << endl;
+	log << "Master " << VERSION << " starting..." << endl;
+	log << "------------------------" << endl;
+
+	log << "Current time: " << ctime(&my_time);
 
 	log << "Master PID " << master_pid << endl;
 
