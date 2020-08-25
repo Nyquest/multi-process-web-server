@@ -37,10 +37,6 @@ void demonize() {
 	if(sid < 0) {
 		cerr << "sid = " << sid << endl;
 	}
-	// int chdir_val = chdir("/");
-	// if(chdir_val < 0) {
-	// 	cerr << "chdir = " << chdir_val << endl;
-	// }
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
@@ -55,39 +51,12 @@ void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
 	log << "Master caught signal: " << strsignal(sig) << ". Address: " << si->si_addr << endl;
 }
 
+/*
+	WORKER
+*/
+
 int workerProcess() {
 	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << endl;
-
-	// todo del
-	// int sid = setsid();
-	// if(sid < 0) {
-	// 	cerr << "sid = " << sid << endl;
-	// }
-
-	// demonize();
-
-	// todo del end
-
-	// struct sigaction act;
-	// sigset_t set;
-	
-	// act.sa_flags = SA_SIGINFO;
-	// act.sa_sigaction = workerSignalError;
-
-	// sigemptyset(&act.sa_mask);
-
-	// sigaction(SIGFPE, &act, 0);
- //    sigaction(SIGILL, &act, 0); 
- //    sigaction(SIGSEGV, &act, 0);
- //    sigaction(SIGBUS, &act, 0);
- 
- //    sigemptyset(&set);
-
- //    sigaddset(&set, SIGQUIT);
- //    sigaddset(&set, SIGINT);
- //    sigaddset(&set, SIGTERM);
-
- //    sigprocmask(SIG_BLOCK, &set, NULL);
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
@@ -95,11 +64,13 @@ int workerProcess() {
 
 
     log << "Worker " << getpid() << " sleeping..." << endl;
-	usleep(15 * 1000 * 1000);
-	log << "Worker " << getpid() << " woke up" << endl;
+    while (1) {
+    	log << "Worker" << getpid() << " is alive" << endl;
+		usleep(5 * 1000 * 1000);
+    }
+
 
 	return 0;
-	// return 1;
 }
 
 /*
@@ -131,17 +102,6 @@ int masterProcess() {
 	int res = sigaction(SIGCHLD, &act, NULL);
 
 	cout << "res = " << res << endl;
-
-	// sigset_t  set;
-
-	// sigemptyset(&set);
-
-	// log << "SIGQUIT = " << sigaddset(&set, SIGQUIT) << endl;
-	// log << "SIGINT = " << sigaddset(&set, SIGINT) << endl;
-	// log << "SIGTERM = " << sigaddset(&set, SIGTERM) << endl;
-	// log << "SIGCHLD = " << sigaddset(&set, SIGCHLD) << endl;
-
-	// sigprocmask(SIG_BLOCK, &set, NULL);
  
 	int children = 0;
 	pid_t pid;
@@ -161,18 +121,15 @@ int masterProcess() {
     			case 0: {
     				int exitCode = workerProcess();
     				log << "Exit for " << getpid() << " with code " << exitCode << endl;
-    				// kill(getpid(), SIGKILL);
     				exit(exitCode);
     			}
     		}
     		
     	} else {
     		log << "Master " << getpid() << " is waiting for signal " << endl;
+    		usleep(5 * 1000 * 1000);
 
-    		waitpid(-1, NULL, 0);
-
-    		log << "Parent waited for child " << endl;
-
+    		// waitpid(-1, NULL, 0);
     	}
 
     	log << "children = " << children << endl;
