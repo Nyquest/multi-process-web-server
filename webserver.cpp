@@ -19,6 +19,8 @@ const auto processor_count = std::thread::hardware_concurrency();
 
 static std::ofstream log (LOG_FILE);
 
+int children = 0;
+
 void writePid(pid_t pid) {
 	FILE *f;
 	f = fopen(PID_FILE, "w+");
@@ -42,13 +44,14 @@ void demonize() {
 	close(STDERR_FILENO);
 }
 
-void workerSignalError(int sig, siginfo_t *si, void *ptr) {
-	log << "Signal: " << strsignal(sig) << ". Address: " << si->si_addr << endl;
-	exit(CHILD_RESTART);
-}
 
 void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
-	log << "Master caught signal: " << strsignal(sig) << ". Address: " << si->si_addr << endl;
+	log << "Master caught signal: " << strsignal(sig) << endl;
+
+	if(sig == SIGCHLD) {
+		log << "SIGCHLD caught from Process #" << si->si_pid << endl;
+	}
+
 }
 
 /*
@@ -62,10 +65,8 @@ int workerProcess() {
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
 
-
-    log << "Worker " << getpid() << " sleeping..." << endl;
     while (1) {
-    	log << "Worker" << getpid() << " is alive" << endl;
+    	log << "Worker " << getpid() << " is alive" << endl;
 		usleep(5 * 1000 * 1000);
     }
 
@@ -103,7 +104,6 @@ int masterProcess() {
 
 	cout << "res = " << res << endl;
  
-	int children = 0;
 	pid_t pid;
 
     while(1) {
