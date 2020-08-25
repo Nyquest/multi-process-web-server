@@ -8,7 +8,7 @@
 #include <thread>
 #include <string.h>
 
-#define VERSION "0.3.4"
+#define VERSION "0.3.5"
 #define LOG_FILE "webserver.log"
 #define PID_FILE "webserver.pid"
 #define CHILD_RESTART 1
@@ -31,16 +31,6 @@ void writePid(pid_t pid) {
 	}
 }
 
-int sigwaitinfo(const sigset_t *set, siginfo_t *info)
-{
-    int sig = -1;
-
-    if ( sigwait(set, &sig) < 0 )
-        return -1;
-
-    return sig;
-}
-
 void demonize() {
 	umask(0);
 	int sid = setsid();
@@ -61,6 +51,10 @@ void workerSignalError(int sig, siginfo_t *si, void *ptr) {
 	exit(CHILD_RESTART);
 }
 
+void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
+	log << "Master caught signal: " << strsignal(sig) << ". Address: " << si->si_addr << endl;
+}
+
 int workerProcess() {
 	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << endl;
 
@@ -74,26 +68,26 @@ int workerProcess() {
 
 	// todo del end
 
-	struct sigaction act;
-	sigset_t set;
+	// struct sigaction act;
+	// sigset_t set;
 	
-	act.sa_flags = SA_SIGINFO;
-	act.sa_sigaction = workerSignalError;
+	// act.sa_flags = SA_SIGINFO;
+	// act.sa_sigaction = workerSignalError;
 
-	sigemptyset(&act.sa_mask);
+	// sigemptyset(&act.sa_mask);
 
-	sigaction(SIGFPE, &act, 0);
-    sigaction(SIGILL, &act, 0); 
-    sigaction(SIGSEGV, &act, 0);
-    sigaction(SIGBUS, &act, 0);
+	// sigaction(SIGFPE, &act, 0);
+ //    sigaction(SIGILL, &act, 0); 
+ //    sigaction(SIGSEGV, &act, 0);
+ //    sigaction(SIGBUS, &act, 0);
  
-    sigemptyset(&set);
+ //    sigemptyset(&set);
 
-    sigaddset(&set, SIGQUIT);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
+ //    sigaddset(&set, SIGQUIT);
+ //    sigaddset(&set, SIGINT);
+ //    sigaddset(&set, SIGTERM);
 
-    sigprocmask(SIG_BLOCK, &set, NULL);
+ //    sigprocmask(SIG_BLOCK, &set, NULL);
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
@@ -107,6 +101,10 @@ int workerProcess() {
 	return 0;
 	// return 1;
 }
+
+/*
+	MASTER
+*/
 
 int masterProcess() {
 
@@ -126,20 +124,24 @@ int masterProcess() {
 
 	writePid(master_pid);
 
+	struct sigaction act;
+	act.sa_sigaction = masterSignalHandler;
+	act.sa_flags = SA_SIGINFO;
 
-	int status = 0;
-	sigset_t  set;
-	siginfo_t siginfo;
+	int res = sigaction(SIGCHLD, &act, NULL);
 
-	sigemptyset(&set);
+	cout << "res = " << res << endl;
 
-	// sigaction(SIGCHLD, &act, 0);
-	log << "SIGQUIT = " << sigaddset(&set, SIGQUIT) << endl;
-	log << "SIGINT = " << sigaddset(&set, SIGINT) << endl;
-	log << "SIGTERM = " << sigaddset(&set, SIGTERM) << endl;
-	log << "SIGCHLD = " << sigaddset(&set, SIGCHLD) << endl;
+	// sigset_t  set;
 
-	sigprocmask(SIG_BLOCK, &set, NULL);
+	// sigemptyset(&set);
+
+	// log << "SIGQUIT = " << sigaddset(&set, SIGQUIT) << endl;
+	// log << "SIGINT = " << sigaddset(&set, SIGINT) << endl;
+	// log << "SIGTERM = " << sigaddset(&set, SIGTERM) << endl;
+	// log << "SIGCHLD = " << sigaddset(&set, SIGCHLD) << endl;
+
+	// sigprocmask(SIG_BLOCK, &set, NULL);
  
 	int children = 0;
 	pid_t pid;
@@ -171,16 +173,6 @@ int masterProcess() {
 
     		log << "Parent waited for child " << endl;
 
-    		// pause();
-   //  		int signalCode = sigwaitinfo(&set, &siginfo);
-    		// log << "Master received signal" << endl;
-   //  		log << "Signal code = " << signalCode << endl;
-
-   //  		log << "SIGCHLD = " << SIGCHLD << endl;
-
-			// if(siginfo.si_signo == SIGCHLD) {
-			// 	log << "SIGCHLD from" << pid << endl;
-			// }
     	}
 
     	log << "children = " << children << endl;
@@ -189,7 +181,7 @@ int masterProcess() {
     }
 
 
-	return status;
+	return 0;
 }
 
 
