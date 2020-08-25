@@ -8,7 +8,7 @@
 #include <thread>
 #include <string.h>
 
-#define VERSION "0.3.5"
+#define VERSION "0.4.0"
 #define LOG_FILE "webserver.log"
 #define PID_FILE "webserver.pid"
 #define CHILD_RESTART 1
@@ -50,6 +50,8 @@ void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
 
 	if(sig == SIGCHLD) {
 		log << "SIGCHLD caught from Process #" << si->si_pid << endl;
+		waitpid(si->si_pid, NULL, 0);
+		--children;
 	}
 
 }
