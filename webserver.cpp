@@ -3,12 +3,13 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
 #include <fstream>
 #include <time.h>
 #include <thread>
 #include <string.h>
 
-#define VERSION "0.4.1"
+#define VERSION "0.4.2"
 #define LOG_FILE "webserver.log"
 #define PID_FILE "webserver.pid"
 #define CHILD_RESTART 1
@@ -63,8 +64,8 @@ void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
 	WORKER
 */
 
-int workerProcess() {
-	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << endl;
+int workerProcess(int socket) {
+	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << ". Socket = " << socket << endl;
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
@@ -74,7 +75,6 @@ int workerProcess() {
     	log << "Worker " << getpid() << " is alive" << endl;
 		usleep(5 * 1000 * 1000);
     }
-
 
 	return 0;
 }
@@ -115,6 +115,17 @@ int masterProcess() {
 
     	if(children < processor_count) {
     		usleep(0.5 * 1000 * 1000);
+
+			int sv[2];
+
+			if(socketpair(AF_LOCAL, SOCK_STREAM, 0, sv) < 0) {
+				perror("socketpair");
+				log << "Can't create socketpair" << endl;
+				continue;
+			}
+
+			log << "socketpair: " << sv[0] << " and " << sv[1] << endl;
+
     		pid = fork();
     		++children;
 
@@ -124,10 +135,15 @@ int masterProcess() {
     				break;
     			}
     			case 0: {
-    				int exitCode = workerProcess();
+					close(sv[0]);
+					int exitCode = workerProcess(sv[1]);
     				log << "Exit for " << getpid() << " with code " << exitCode << endl;
     				exit(exitCode);
     			}
+				default: {
+					close(sv[1]);
+					log << "Master socket " << sv[0] << endl;
+				}
     		}
     		
     	} else {
