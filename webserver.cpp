@@ -8,7 +8,7 @@
 #include <thread>
 #include <string.h>
 
-#define VERSION "0.4.0"
+#define VERSION "0.4.1"
 #define LOG_FILE "webserver.log"
 #define PID_FILE "webserver.pid"
 #define CHILD_RESTART 1
@@ -48,12 +48,15 @@ void demonize() {
 void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
 	log << "Master caught signal: " << strsignal(sig) << endl;
 
+	int status;
+	pid_t pid;
 	if(sig == SIGCHLD) {
 		log << "SIGCHLD caught from Process #" << si->si_pid << endl;
-		waitpid(si->si_pid, NULL, 0);
-		--children;
+		while((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+			log << "Child " << pid << " terminated with status " << status << endl;
+			--children;
+		}
 	}
-
 }
 
 /*
