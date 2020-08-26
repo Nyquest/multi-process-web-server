@@ -71,10 +71,10 @@ int workerProcess(int socket) {
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
 
-    while (1) {
-    	log << "Worker " << getpid() << " is alive" << endl;
+	while (1) {
+		log << "Worker " << getpid() << " is alive" << endl;
 		usleep(5 * 1000 * 1000);
-    }
+	}
 
 	return 0;
 }
@@ -111,10 +111,10 @@ int masterProcess() {
  
 	pid_t pid;
 
-    while(1) {
+	while(1) {
 
-    	if(children < processor_count) {
-    		usleep(0.5 * 1000 * 1000);
+		if(children < processor_count) {
+			usleep(0.5 * 1000 * 1000);
 
 			int sv[2];
 
@@ -126,37 +126,37 @@ int masterProcess() {
 
 			log << "socketpair: " << sv[0] << " and " << sv[1] << endl;
 
-    		pid = fork();
-    		++children;
+			pid = fork();
+			++children;
 
-    		switch(pid) {
-    			case -1: {
-    				log << "Can't fork: " << errno << endl;
-    				break;
-    			}
-    			case 0: {
+			switch(pid) {
+				case -1: {
+					log << "Can't fork: " << errno << endl;
+					break;
+				}
+				case 0: {
 					close(sv[0]);
 					int exitCode = workerProcess(sv[1]);
-    				log << "Exit for " << getpid() << " with code " << exitCode << endl;
-    				exit(exitCode);
-    			}
+					log << "Exit for " << getpid() << " with code " << exitCode << endl;
+					exit(exitCode);
+				}
 				default: {
 					close(sv[1]);
 					log << "Master socket " << sv[0] << endl;
 				}
-    		}
-    		
-    	} else {
-    		log << "Master " << getpid() << " is waiting for signal " << endl;
-    		usleep(5 * 1000 * 1000);
+			}
+			
+		} else {
+			log << "Master " << getpid() << " is waiting for signal " << endl;
+			usleep(5 * 1000 * 1000);
 
-    		// waitpid(-1, NULL, 0);
-    	}
+			// waitpid(-1, NULL, 0);
+		}
 
-    	log << "children = " << children << endl;
-    	usleep(1 * 1000 * 1000);
+		log << "children = " << children << endl;
+		usleep(1 * 1000 * 1000);
 
-    }
+	}
 
 
 	return 0;
