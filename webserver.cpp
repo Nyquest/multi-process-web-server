@@ -12,7 +12,6 @@
 #define VERSION "0.4.2"
 #define LOG_FILE "webserver.log"
 #define PID_FILE "webserver.pid"
-#define CHILD_RESTART 1
 
 using namespace std;
 
