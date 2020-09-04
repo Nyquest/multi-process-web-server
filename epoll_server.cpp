@@ -34,7 +34,24 @@ int set_nonblock(int fd) {
 
 }
 
-enum state {METHOD, PATH, PROTOCOL};
+enum method {POST, GET, UNKNOWN};
+
+method extract_method(char * buffer, int buffer_size) {
+
+	for(int p = 0; p < buffer_size; ++p) {
+		if(buffer[p] == ' ') {
+			if(p == 4 && buffer[0] == 'P' && buffer[1] == 'O' && buffer[2] == 'S' && buffer[3] == 'T') {
+				return POST;
+			} else if (p == 3 && buffer[0] == 'G' && buffer[1] == 'E' && buffer[2] == 'T') {
+				return GET;
+			} else {
+				return UNKNOWN;
+			}
+		}
+	}
+
+	return UNKNOWN;
+}
 
 int main() {
 
@@ -103,22 +120,16 @@ int main() {
 
 					bool has_error = false;
 
-					state st = METHOD;
-					for(int p = 0; p < BUFFER_SIZE; ++p) {
-						if(st == METHOD && buffer[p] == ' ') {
-							if(p == 4 && buffer[0] == 'P' && buffer[1] == 'O' && buffer[2] == 'S' && buffer[3] == 'T') {
-								cout << "POST" << endl;
-							} else if (p == 3 && buffer[0] == 'G' && buffer[1] == 'E' && buffer[2] == 'T') {
-								cout << "GET" << endl;
-							} else {
-								cout << "Incorrect method!" << endl;
-								has_error = true;
-								send(events[i].data.fd, header400, strlen(header400), MSG_NOSIGNAL);
-								send(events[i].data.fd, body400, strlen(body400), MSG_NOSIGNAL);
-								break;
-							}
-							st = PATH;
-						}
+
+					method _method = extract_method(buffer, BUFFER_SIZE);
+
+					cout << "method = " << _method << endl;
+
+					if(_method == UNKNOWN) {
+						cout << "Incorrect method!" << endl;
+						send(events[i].data.fd, header400, strlen(header400), MSG_NOSIGNAL);
+						send(events[i].data.fd, body400, strlen(body400), MSG_NOSIGNAL);
+						has_error = true;
 					}
 
 					cout << "fd " << events[i].data.fd << " has_error " << has_error << endl;
