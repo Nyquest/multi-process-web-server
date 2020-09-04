@@ -45,7 +45,10 @@ CTestTestfile.cmake
 _deps
 
 
-# Web Server
+# Multi Process Web Server
 webserver
 webserver.log
 webserver.pid
+
+# Single Process Web Server
+epoll_server
