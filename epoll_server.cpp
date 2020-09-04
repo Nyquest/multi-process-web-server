@@ -36,13 +36,17 @@ int set_nonblock(int fd) {
 
 enum method {POST, GET, UNKNOWN};
 
-method extract_method(char * buffer, int buffer_size) {
+enum http_version {HTTP_1_0, HTTP_1_1, HTTP_2, UNKNOWN_VERSION};
+
+method extract_method(char * buffer, int buffer_size, int *method_last_index) {
 
 	for(int p = 0; p < buffer_size; ++p) {
 		if(buffer[p] == ' ') {
 			if(p == 4 && buffer[0] == 'P' && buffer[1] == 'O' && buffer[2] == 'S' && buffer[3] == 'T') {
+				*method_last_index = p;
 				return POST;
 			} else if (p == 3 && buffer[0] == 'G' && buffer[1] == 'E' && buffer[2] == 'T') {
+				*method_last_index = p;
 				return GET;
 			} else {
 				return UNKNOWN;
@@ -51,6 +55,51 @@ method extract_method(char * buffer, int buffer_size) {
 	}
 
 	return UNKNOWN;
+}
+
+void extract_route(char * buffer, int buffer_size, int *method_last_index, int *route_begin_index, int *route_end_index) {
+	*route_begin_index = *method_last_index + 1;
+	for(int i = *route_begin_index + 1; i < buffer_size; ++i) {
+		if(buffer[i] == ' ') {
+			*route_end_index = i;
+			break;
+		}
+		
+	}
+}
+
+http_version extract_http_version(char * buffer, int buffer_size, int *route_end_index) {
+	for(int i = *route_end_index + 1; i < buffer_size; ++i) {
+		if(buffer[i] == '\n' || buffer[i] == '\r') {
+			if(i - *route_end_index - 1 == 8 
+				&& buffer[i - 8] == 'H' 
+				&& buffer[i - 7] == 'T' 
+				&& buffer[i - 6] == 'T' 
+				&& buffer[i - 5] == 'P' 
+				&& buffer[i - 4] == '/' 
+				&& buffer[i - 3] == '1' 
+				&& buffer[i - 2] == '.') {
+
+				if(buffer[i - 1] == '0') {
+					return HTTP_1_0;
+				} else if(buffer[i - 1] == '1') {
+					return HTTP_1_1;
+				}
+				return UNKNOWN_VERSION;
+			} else if(i - *route_end_index - 1 == 6
+				&& buffer[i - 6] == 'H' 
+				&& buffer[i - 5] == 'T' 
+				&& buffer[i - 4] == 'T' 
+				&& buffer[i - 3] == 'P' 
+				&& buffer[i - 2] == '/' 
+				&& buffer[i - 1] == '2') {
+				return HTTP_2;
+			} else {
+				return UNKNOWN_VERSION;
+			}
+		}
+	}
+	return UNKNOWN_VERSION;
 }
 
 int main() {
@@ -118,27 +167,39 @@ int main() {
 					cout << buffer;
 					cout << "============" << endl;
 
-					bool has_error = false;
 
+					int method_last_index = 0;
 
-					method _method = extract_method(buffer, BUFFER_SIZE);
+					method _method = extract_method(buffer, BUFFER_SIZE, &method_last_index);
 
 					cout << "method = " << _method << endl;
+					cout << "method_last_index = " << method_last_index << endl;
 
 					if(_method == UNKNOWN) {
 						cout << "Incorrect method!" << endl;
 						send(events[i].data.fd, header400, strlen(header400), MSG_NOSIGNAL);
 						send(events[i].data.fd, body400, strlen(body400), MSG_NOSIGNAL);
-						has_error = true;
+						shutdown(events[i].data.fd, SHUT_RDWR);
+						close(events[i].data.fd);
+						continue;
 					}
 
-					cout << "fd " << events[i].data.fd << " has_error " << has_error << endl;
+					int route_begin_index = 0;
+					int route_end_index = 0;
 
-					if(!has_error) {
-						cout << "send 200" << endl;
-						send(events[i].data.fd, header200, strlen(header200), MSG_NOSIGNAL);
-						send(events[i].data.fd, body, strlen(body), MSG_NOSIGNAL);	
-					}
+					extract_route(buffer, BUFFER_SIZE, &method_last_index, &route_begin_index, &route_end_index);
+
+					cout << "route_begin_index = " << route_begin_index << endl;
+					cout << "route_end_index = " << route_end_index << endl;
+
+					http_version _http_version =  extract_http_version(buffer, BUFFER_SIZE, &route_end_index);
+
+					cout << "_http_version = " << _http_version << endl;
+
+					cout << "fd " << events[i].data.fd << " all ok" << endl;
+
+					send(events[i].data.fd, header200, strlen(header200), MSG_NOSIGNAL);
+					send(events[i].data.fd, body, strlen(body), MSG_NOSIGNAL);	
 
 					cout << "shutdown fd " << events[i].data.fd << endl;
 					shutdown(events[i].data.fd, SHUT_RDWR);
