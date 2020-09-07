@@ -134,6 +134,14 @@ int main() {
 
 	cout << "Welcome to Epoll server" << endl;
 
+	string target_directory = "/Users/naik/_file/static-site/";
+
+	if(target_directory.length() > 0 && target_directory.back() == '/') {
+		target_directory.pop_back();
+	}
+
+	cout << "target_directory = " << target_directory << endl;
+
 	struct sigaction act;
 	act.sa_sigaction = signalHandler;
 	act.sa_flags = SA_SIGINFO;
@@ -239,11 +247,21 @@ int main() {
 
 					cout << "fd " << fd << " all ok" << endl;
 
-					char * filePath = extract_file_path(buffer, &route_begin_index, &route_end_index);
+					char * file_path = extract_file_path(buffer, &route_begin_index, &route_end_index);
 
-					cout << "filePath = '" << filePath << "'" << endl;
+					cout << "file_path = '" << file_path << "'" << endl;
 
-					delete[] filePath;
+					// char full_file_path[255];
+					// strcpy(full_file_path, target_directory);
+					// strcat(full_file_path, file_path);
+
+					string full_file_path(target_directory);
+					full_file_path += file_path;
+
+					cout << "full_file_path = '" << full_file_path << "'" << endl;
+
+
+					delete[] file_path;
 
 					send(fd, header200, strlen(header200), MSG_NOSIGNAL);
 					send(fd, body, strlen(body), MSG_NOSIGNAL);
