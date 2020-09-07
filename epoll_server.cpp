@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <cstring>
+#include <signal.h>
 
 using namespace std;
 
@@ -102,11 +103,32 @@ http_version extract_http_version(char * buffer, int buffer_size, int *route_end
 	return UNKNOWN_VERSION;
 }
 
+void signalHandler(int sig, siginfo_t *si, void *ptr) {
+	cout << "Master caught signal: " << strsignal(sig) << endl;
+	if(sig == SIGINT) {
+		cout << "SIGINT caught" << endl;
+		exit(0);
+	}
+}
+
 int main() {
 
 	cout << "Welcome to Epoll server" << endl;
 
+	struct sigaction act;
+	act.sa_sigaction = signalHandler;
+	act.sa_flags = SA_SIGINFO;
+
+	if(sigaction(SIGINT, &act, NULL) == -1) {
+		cout << "Error of sigaction SIGINT" << endl;
+	}
+
 	int master_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	int flag = 1;
+	if (setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)) == -1) {
+		handle_error("Reuse addr error");
+	}
 
 	struct sockaddr_in SockAddr;
 	SockAddr.sin_family = AF_INET;
