@@ -161,8 +161,11 @@ int main() {
 		cout << "wait events..." << endl; 
 		int N = epoll_wait(EPoll, events, MAX_EVENTS, -1);
 		cout << "N = " << N << endl;
-		for(int i=0; i < N; i++) {
-			if(events[i].data.fd == master_socket) {
+		for(int ei = 0; ei < N; ei++) {
+
+			int fd = events[ei].data.fd;
+
+			if(fd == master_socket) {
 				cout << "New Connection..." << endl;
 				int slave_socket = accept(master_socket, 0, 0);
 				cout << "Connection accepted: " << slave_socket << endl;
@@ -174,16 +177,16 @@ int main() {
 
 				epoll_ctl(EPoll, EPOLL_CTL_ADD, slave_socket, &event);
 			} else {
-				cout << "read from fd " << events[i].data.fd << endl;
+				cout << "read from fd " << fd << endl;
 				static char buffer[BUFFER_SIZE];
-				int recv_result = recv(events[i].data.fd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
+				int recv_result = recv(fd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
 
-				cout << "recv_result for " << events[i].data.fd << " = " << recv_result << endl;
+				cout << "recv_result for " << fd << " = " << recv_result << endl;
 
 				if(recv_result == 0 && (errno != EAGAIN)) {
-					cout << "Close " <<  events[i].data.fd << endl;
-					shutdown(events[i].data.fd, SHUT_RDWR);
-					close(events[i].data.fd);
+					cout << "Close " <<  fd << endl;
+					shutdown(fd, SHUT_RDWR);
+					close(fd);
 				} else {
 					cout << "===header===" << endl;
 					cout << buffer;
@@ -199,10 +202,10 @@ int main() {
 
 					if(_method == UNKNOWN) {
 						cout << "Incorrect method!" << endl;
-						send(events[i].data.fd, header400, strlen(header400), MSG_NOSIGNAL);
-						send(events[i].data.fd, body400, strlen(body400), MSG_NOSIGNAL);
-						shutdown(events[i].data.fd, SHUT_RDWR);
-						close(events[i].data.fd);
+						send(fd, header400, strlen(header400), MSG_NOSIGNAL);
+						send(fd, body400, strlen(body400), MSG_NOSIGNAL);
+						shutdown(fd, SHUT_RDWR);
+						close(fd);
 						continue;
 					}
 
@@ -218,14 +221,14 @@ int main() {
 
 					cout << "_http_version = " << _http_version << endl;
 
-					cout << "fd " << events[i].data.fd << " all ok" << endl;
+					cout << "fd " << fd << " all ok" << endl;
 
-					send(events[i].data.fd, header200, strlen(header200), MSG_NOSIGNAL);
-					send(events[i].data.fd, body, strlen(body), MSG_NOSIGNAL);	
+					send(fd, header200, strlen(header200), MSG_NOSIGNAL);
+					send(fd, body, strlen(body), MSG_NOSIGNAL);
 
-					cout << "shutdown fd " << events[i].data.fd << endl;
-					shutdown(events[i].data.fd, SHUT_RDWR);
-					close(events[i].data.fd);
+					cout << "shutdown fd " << fd << endl;
+					shutdown(fd, SHUT_RDWR);
+					close(fd);
 
 				}
 
