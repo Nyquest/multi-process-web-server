@@ -69,6 +69,31 @@ void extract_route(char * buffer, int buffer_size, int *method_last_index, int *
 	}
 }
 
+char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_index) {
+	int index = *route_end_index;
+
+	for(int i = *route_begin_index; i < *route_end_index; ++i) {
+		if(buffer[i] == '?') {
+			index = i;
+			break;
+		}
+	}
+
+	cout << "index = " << index << endl;
+
+	cout << "route_begin_index = " << *route_begin_index << endl;
+
+	cout << "filePath size = " << index - *route_begin_index + 1 << endl;
+
+	char * filePath = new char[index - *route_begin_index + 1];
+	int i = 0;
+	for(i = *route_begin_index; i < index; ++i) {
+		filePath[i - *route_begin_index] = buffer[i];
+	}
+	filePath[i] = '\0';
+	return filePath;
+}
+
 http_version extract_http_version(char * buffer, int buffer_size, int *route_end_index) {
 	for(int i = *route_end_index + 1; i < buffer_size; ++i) {
 		if(buffer[i] == '\n' || buffer[i] == '\r') {
@@ -222,6 +247,14 @@ int main() {
 					cout << "_http_version = " << _http_version << endl;
 
 					cout << "fd " << fd << " all ok" << endl;
+
+					char * filePath = extract_file_path(buffer, &route_begin_index, &route_end_index);
+
+					cout << "filePath = '" << filePath << "'" << endl;
+
+
+
+					delete[] filePath;
 
 					send(fd, header200, strlen(header200), MSG_NOSIGNAL);
 					send(fd, body, strlen(body), MSG_NOSIGNAL);
