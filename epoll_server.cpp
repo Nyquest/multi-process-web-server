@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/epoll.h>
@@ -7,6 +8,7 @@
 #include <fcntl.h>
 #include <cstring>
 #include <signal.h>
+#include <vector>
 
 using namespace std;
 
@@ -134,7 +136,7 @@ int main() {
 
 	cout << "Welcome to Epoll server" << endl;
 
-	string target_directory = "/Users/naik/_file/static-site/";
+	string target_directory = "/usr/src/multi-process-web-server/static-site";
 
 	if(target_directory.length() > 0 && target_directory.back() == '/') {
 		target_directory.pop_back();
@@ -257,18 +259,27 @@ int main() {
 							full_file_path += file_path;
 
 							cout << "full_file_path = '" << full_file_path << "'" << endl;
+
+							ifstream input(full_file_path.c_str(), std::ios::binary);
+
+							send(fd, header200, strlen(header200), MSG_NOSIGNAL);
+
+
+							std::string content( (std::istreambuf_iterator<char>(input) ), (std::istreambuf_iterator<char>()) );
+
+							send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
+
 							break;
 						}
 						case POST: {
 							cout << "Not yet implemented..." << endl;
+							send(fd, header200, strlen(header200), MSG_NOSIGNAL);
+							send(fd, body, strlen(body), MSG_NOSIGNAL);
 							break;
 						}
 					}
 
 					delete[] file_path;
-
-					send(fd, header200, strlen(header200), MSG_NOSIGNAL);
-					send(fd, body, strlen(body), MSG_NOSIGNAL);
 
 					cout << "shutdown fd " << fd << endl;
 					shutdown(fd, SHUT_RDWR);
