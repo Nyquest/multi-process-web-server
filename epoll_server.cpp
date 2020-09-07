@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <cstring>
 #include <signal.h>
-#include <vector>
 
 using namespace std;
 
@@ -227,7 +226,6 @@ int main() {
 					method _method = extract_method(buffer, BUFFER_SIZE, &method_last_index);
 
 					cout << "method = " << _method << endl;
-					cout << "method_last_index = " << method_last_index << endl;
 
 					if(_method == UNKNOWN) {
 						cout << "Incorrect method!" << endl;
@@ -263,7 +261,6 @@ int main() {
 							ifstream input(full_file_path.c_str(), std::ios::binary);
 
 							send(fd, header200, strlen(header200), MSG_NOSIGNAL);
-
 
 							std::string content( (std::istreambuf_iterator<char>(input) ), (std::istreambuf_iterator<char>()) );
 
