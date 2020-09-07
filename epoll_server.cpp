@@ -79,12 +79,6 @@ char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_i
 		}
 	}
 
-	cout << "index = " << index << endl;
-
-	cout << "route_begin_index = " << *route_begin_index << endl;
-
-	cout << "filePath size = " << index - *route_begin_index + 1 << endl;
-
 	char * filePath = new char[index - *route_begin_index + 1];
 	int i = 0;
 	for(i = *route_begin_index; i < index; ++i) {
@@ -239,9 +233,6 @@ int main() {
 
 					extract_route(buffer, BUFFER_SIZE, &method_last_index, &route_begin_index, &route_end_index);
 
-					cout << "route_begin_index = " << route_begin_index << endl;
-					cout << "route_end_index = " << route_end_index << endl;
-
 					http_version _http_version =  extract_http_version(buffer, BUFFER_SIZE, &route_end_index);
 
 					cout << "_http_version = " << _http_version << endl;
@@ -251,8 +242,6 @@ int main() {
 					char * filePath = extract_file_path(buffer, &route_begin_index, &route_end_index);
 
 					cout << "filePath = '" << filePath << "'" << endl;
-
-
 
 					delete[] filePath;
 
