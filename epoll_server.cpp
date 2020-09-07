@@ -251,15 +251,19 @@ int main() {
 
 					cout << "file_path = '" << file_path << "'" << endl;
 
-					// char full_file_path[255];
-					// strcpy(full_file_path, target_directory);
-					// strcat(full_file_path, file_path);
+					switch(_method) {
+						case GET: {
+							string full_file_path(target_directory);
+							full_file_path += file_path;
 
-					string full_file_path(target_directory);
-					full_file_path += file_path;
-
-					cout << "full_file_path = '" << full_file_path << "'" << endl;
-
+							cout << "full_file_path = '" << full_file_path << "'" << endl;
+							break;
+						}
+						case POST: {
+							cout << "Not yet implemented..." << endl;
+							break;
+						}
+					}
 
 					delete[] file_path;
 
