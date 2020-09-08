@@ -25,6 +25,10 @@ char const *body_400 = "<em>Bad request!</em>";
 
 char const *header_404 = "HTTP/1.0 404 Not Found\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
 
+char const *root_directory = "/";
+
+char const *default_page = "/index.html";
+
 #define handle_error(msg) \
 	do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
@@ -265,7 +269,12 @@ int main() {
 					switch(_method) {
 						case GET: {
 							string full_file_path(target_directory);
-							full_file_path += file_path;
+
+							if(strcmp(file_path, root_directory) == 0) {
+								full_file_path += default_page;
+							} else {
+								full_file_path += file_path;
+							}
 
 							cout << "full_file_path = '" << full_file_path << "'" << endl;
 
