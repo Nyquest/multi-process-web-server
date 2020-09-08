@@ -16,7 +16,9 @@ using namespace std;
 #define BUFFER_SIZE 4096
 
 char const *header_200_text_html = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
-char const *header_200_image_png = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: image/png\n\n";
+char const *header_200_image_png = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Disposition: inline\nContent-Type: image/png\n\n";
+char const *header_200_text_javascript = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/javascript\n\n";
+char const *header_200_application_octet_stream = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: application/octet-stream\n\n";
 
 char const *body_not_implemented = "<b>Not implemented</b>";
 
@@ -49,6 +51,8 @@ int set_nonblock(int fd) {
 enum method {POST, GET, UNKNOWN};
 
 enum http_version {HTTP_1_0, HTTP_1_1, HTTP_2, UNKNOWN_VERSION};
+
+enum content_type {HTML, JS, PNG, OCTET_STREAM};
 
 method extract_method(char * buffer, int buffer_size, int *method_last_index) {
 
@@ -97,6 +101,37 @@ char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_i
 	}
 	filePath[i] = '\0';
 	return filePath;
+}
+
+content_type get_content_type(const char * filename) {
+	cout << "get_content_type = " << filename << endl;
+	int len = strlen(filename);
+	for(int i = len - 1; i >=0; --i) {
+		if(filename[i] == '.') {
+			switch(len - i - 1) {
+				case 2: {
+					if(filename[i + 1] == 'j' && filename[i + 2] == 's') {
+						return JS;
+					}
+					break;
+				}
+				case 3: {
+					if(filename[i + 1] == 'p' && filename[i + 2] == 'n' && filename[i + 3] == 'g') {
+						return PNG;
+					}
+					break;
+				}
+				case 4: {
+					if(filename[i + 1] == 'h' && filename[i + 2] == 't' && filename[i + 3] == 'm' && filename[i + 4] == 'l') {
+						return HTML;
+					}
+					break;
+				}
+			}
+			break;
+		}
+	}
+	return OCTET_STREAM;
 }
 
 http_version extract_http_version(char * buffer, int buffer_size, int *route_end_index) {
@@ -283,7 +318,28 @@ int main() {
 							if(file_input && file_exists(full_file_path)) {
 								std::string content( (std::istreambuf_iterator<char>(file_input) ), (std::istreambuf_iterator<char>()) );
 
-								send(fd, header_200_text_html, strlen(header_200_text_html), MSG_NOSIGNAL);
+								content_type _content_type = get_content_type(full_file_path.c_str());
+
+								switch(_content_type) {
+									case HTML: {
+										send(fd, header_200_text_html, strlen(header_200_text_html), MSG_NOSIGNAL);
+										break;
+									}
+									case JS: {
+										send(fd, header_200_text_javascript, strlen(header_200_text_javascript), MSG_NOSIGNAL);
+										break;
+									}
+									case PNG: {
+										send(fd, header_200_image_png, strlen(header_200_image_png), MSG_NOSIGNAL);
+										break;
+									}
+									default: {
+										send(fd, header_200_application_octet_stream, strlen(header_200_application_octet_stream), MSG_NOSIGNAL);
+										break;
+									}
+								}
+
+								
 								send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
 							} else {
 								cout << "File '" << full_file_path << "' not found" << endl;
