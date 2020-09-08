@@ -14,13 +14,15 @@ using namespace std;
 #define MAX_EVENTS 32
 #define BUFFER_SIZE 4096
 
-char const *header200 = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
-char const *body = "<b>Hello, World!</b>";
+char const *header_200_text_html = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
+char const *header_200_image_png = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: image/png\n\n";
 
-char const *header400 = "HTTP/1.0 400 Bad Request \nServer: MultiProcessWebServer v0.1\nConnection: Close\nContent-Type: text/html\n\n";
-char const *body400 = "<em>Bad request!</em>";
+char const *body_not_implemented = "<b>Not implemented</b>";
 
-char const *header404 = "HTTP/1.0 404 Not Found\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
+char const *header_400 = "HTTP/1.0 400 Bad Request \nServer: MultiProcessWebServer v0.1\nConnection: Close\nContent-Type: text/html\n\n";
+char const *body_400 = "<em>Bad request!</em>";
+
+char const *header_404 = "HTTP/1.0 404 Not Found\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
 
 #define handle_error(msg) \
 	do { perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -232,8 +234,8 @@ int main() {
 
 					if(_method == UNKNOWN) {
 						cout << "Incorrect method!" << endl;
-						send(fd, header400, strlen(header400), MSG_NOSIGNAL);
-						send(fd, body400, strlen(body400), MSG_NOSIGNAL);
+						send(fd, header_400, strlen(header_400), MSG_NOSIGNAL);
+						send(fd, body_400, strlen(body_400), MSG_NOSIGNAL);
 						shutdown(fd, SHUT_RDWR);
 						close(fd);
 						continue;
@@ -264,22 +266,22 @@ int main() {
 							ifstream file_input(full_file_path.c_str(), std::ios::binary);
 
 							if(file_input.is_open()) {
-								send(fd, header200, strlen(header200), MSG_NOSIGNAL);
+								send(fd, header_200_text_html, strlen(header_200_text_html), MSG_NOSIGNAL);
 
 								std::string content( (std::istreambuf_iterator<char>(file_input) ), (std::istreambuf_iterator<char>()) );
 
 								send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
 							} else {
 								cout << "File '" << full_file_path << "' not found" << endl;
-								send(fd, header404, strlen(header404), MSG_NOSIGNAL);
+								send(fd, header_404, strlen(header_404), MSG_NOSIGNAL);
 							}
 
 							break;
 						}
 						case POST: {
 							cout << "Not yet implemented..." << endl;
-							send(fd, header200, strlen(header200), MSG_NOSIGNAL);
-							send(fd, body, strlen(body), MSG_NOSIGNAL);
+							send(fd, header_200_text_html, strlen(header_200_text_html), MSG_NOSIGNAL);
+							send(fd, body_not_implemented, strlen(body_not_implemented), MSG_NOSIGNAL);
 							break;
 						}
 					}
