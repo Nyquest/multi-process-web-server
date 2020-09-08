@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/epoll.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -136,6 +137,11 @@ void signalHandler(int sig, siginfo_t *si, void *ptr) {
 	}
 }
 
+inline bool file_exists (const std::string& filename) {
+  struct stat buffer;   
+  return (stat (filename.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode)); 
+}
+
 int main() {
 
 	cout << "Welcome to Epoll server" << endl;
@@ -265,11 +271,10 @@ int main() {
 
 							ifstream file_input(full_file_path.c_str(), std::ios::binary);
 
-							if(file_input.is_open()) {
-								send(fd, header_200_text_html, strlen(header_200_text_html), MSG_NOSIGNAL);
-
+							if(file_input && file_exists(full_file_path)) {
 								std::string content( (std::istreambuf_iterator<char>(file_input) ), (std::istreambuf_iterator<char>()) );
 
+								send(fd, header_200_text_html, strlen(header_200_text_html), MSG_NOSIGNAL);
 								send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
 							} else {
 								cout << "File '" << full_file_path << "' not found" << endl;
