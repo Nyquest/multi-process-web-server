@@ -19,6 +19,7 @@ char const *header_200_text_html = "HTTP/1.0 200 OK\nServer: MultiProcessWebServ
 char const *header_200_image_png = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Disposition: inline\nContent-Type: image/png\n\n";
 char const *header_200_text_javascript = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/javascript\n\n";
 char const *header_200_application_octet_stream = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: application/octet-stream\n\n";
+char const *header_200_application_json = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: application/json;charset=UTF-8\n\n";
 
 char const *body_not_implemented = "<b>Not implemented</b>";
 
@@ -30,6 +31,8 @@ char const *header_404 = "HTTP/1.0 404 Not Found\nServer: MultiProcessWebServer 
 char const *root_directory = "/";
 
 char const *default_page = "/index.html";
+
+char const *route_calc = "/calc";
 
 #define handle_error(msg) \
 	do { perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -101,6 +104,16 @@ char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_i
 	}
 	filePath[i] = '\0';
 	return filePath;
+}
+
+void extract_body(char * buffer, int buffer_size, int *body_begin_index) {
+	cout << "extract_body" << endl;
+	for(int i = 3; i < buffer_size; ++i) {
+		if(*body_begin_index == -1 && buffer[i - 1] == '\n' && buffer[i - 2] == '\r' && buffer[i - 3] == '\n') {
+			*body_begin_index = i;
+			break;
+		}
+	}
 }
 
 content_type get_content_type(const char * filename) {
@@ -179,6 +192,75 @@ void signalHandler(int sig, siginfo_t *si, void *ptr) {
 inline bool file_exists (const std::string& filename) {
   struct stat buffer;   
   return (stat (filename.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode)); 
+}
+
+int calc(char * buffer, int *body_begin_index) {
+	char state = '^';
+	char op = '+';
+
+	int num1 = 0;
+	int num2 = 0;
+
+	for(int i = *body_begin_index; i < strlen(buffer); ++i) {
+		char cur =  buffer[i];
+		switch(state) {
+			case '^': {
+				if(buffer[i] == ':') {
+					state = ':';
+				}
+				break;
+			}
+			case ':': {
+				if(buffer[i] == '"') {
+					state = 'f';
+				}
+				break;
+			}
+			case 'f': {
+				if(buffer[i] >= '0' && buffer[i] <= '9') {
+					num1 *= 10;
+					num1 += buffer[i] - '0';
+				} else if(buffer[i] == '+' || buffer[i] == '-' || buffer[i] == '*' || buffer[i] == '/') {
+					op = buffer[i];
+					state = 's';
+				}
+				break;
+			}
+			case 's': {
+				if(buffer[i] >= '0' && buffer[i] <= '9') {
+					num2 *= 10;
+					num2 += buffer[i] - '0';
+				} else if(buffer[i] == '"') {
+					state = 'e';
+					cout << "End" << endl;
+					break;
+				}
+				break;
+			}
+
+		}
+		
+	}
+
+	int result = 0;
+
+	switch(op) {
+		case '+': {
+			return num1 + num2;
+		}
+		case '-': {
+			return num1 - num2;
+		}
+		case '*': {
+			return num1 * num2;
+		}
+		case '/': {
+			return (num2 == 0) ? 0 : num1 / num2;
+		}
+
+	}
+
+	return 0;
 }
 
 int main() {
@@ -349,9 +431,31 @@ int main() {
 							break;
 						}
 						case POST: {
-							cout << "Not yet implemented..." << endl;
-							send(fd, header_200_text_html, strlen(header_200_text_html), MSG_NOSIGNAL);
-							send(fd, body_not_implemented, strlen(body_not_implemented), MSG_NOSIGNAL);
+
+							if(strcmp(file_path, route_calc) != 0) {
+								send(fd, header_404, strlen(header_404), MSG_NOSIGNAL);
+							} else {
+								cout << "Calculator" << endl;
+
+								int body_begin_index = -1;
+
+								extract_body(buffer, BUFFER_SIZE, &body_begin_index);
+
+								if(body_begin_index == -1) {
+									send(fd, header_400, strlen(header_400), MSG_NOSIGNAL);
+									send(fd, body_400, strlen(body_400), MSG_NOSIGNAL);
+								} else {
+
+									int calc_result = calc(buffer, &body_begin_index);
+
+									cout << "calc_result = " << calc_result << endl;
+
+									string json_result = "{\n\t\"result\": " + to_string(calc_result) + "\n}";
+
+									send(fd, header_200_application_json, strlen(header_200_application_json), MSG_NOSIGNAL);
+									send(fd, json_result.c_str(), json_result.size(), MSG_NOSIGNAL);
+								}
+							}
 							break;
 						}
 					}
