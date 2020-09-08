@@ -16,8 +16,11 @@ using namespace std;
 
 char const *header200 = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
 char const *body = "<b>Hello, World!</b>";
+
 char const *header400 = "HTTP/1.0 400 Bad Request \nServer: MultiProcessWebServer v0.1\nConnection: Close\nContent-Type: text/html\n\n";
 char const *body400 = "<em>Bad request!</em>";
+
+char const *header404 = "HTTP/1.0 404 Not Found\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
 
 #define handle_error(msg) \
 	do { perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -258,13 +261,18 @@ int main() {
 
 							cout << "full_file_path = '" << full_file_path << "'" << endl;
 
-							ifstream input(full_file_path.c_str(), std::ios::binary);
+							ifstream file_input(full_file_path.c_str(), std::ios::binary);
 
-							send(fd, header200, strlen(header200), MSG_NOSIGNAL);
+							if(file_input.is_open()) {
+								send(fd, header200, strlen(header200), MSG_NOSIGNAL);
 
-							std::string content( (std::istreambuf_iterator<char>(input) ), (std::istreambuf_iterator<char>()) );
+								std::string content( (std::istreambuf_iterator<char>(file_input) ), (std::istreambuf_iterator<char>()) );
 
-							send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
+								send(fd, content.c_str(), content.size(), MSG_NOSIGNAL);
+							} else {
+								cout << "File '" << full_file_path << "' not found" << endl;
+								send(fd, header404, strlen(header404), MSG_NOSIGNAL);
+							}
 
 							break;
 						}
