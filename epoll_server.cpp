@@ -107,7 +107,6 @@ char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_i
 }
 
 void extract_body(char * buffer, int buffer_size, int *body_begin_index) {
-	cout << "extract_body" << endl;
 	for(int i = 3; i < buffer_size; ++i) {
 		if(*body_begin_index == -1 && buffer[i - 1] == '\n' && buffer[i - 2] == '\r' && buffer[i - 3] == '\n') {
 			*body_begin_index = i;
@@ -202,7 +201,7 @@ int calc(char * buffer, int *body_begin_index) {
 	int num2 = 0;
 
 	for(int i = *body_begin_index; i < strlen(buffer); ++i) {
-		char cur =  buffer[i];
+		char cur = buffer[i];
 		switch(state) {
 			case '^': {
 				if(buffer[i] == ':') {
@@ -232,12 +231,13 @@ int calc(char * buffer, int *body_begin_index) {
 					num2 += buffer[i] - '0';
 				} else if(buffer[i] == '"') {
 					state = 'e';
-					cout << "End" << endl;
 					break;
 				}
 				break;
 			}
-
+		}
+		if(state == 'e') {
+			break;
 		}
 		
 	}
@@ -352,12 +352,9 @@ int main() {
 					cout << buffer;
 					cout << "============" << endl;
 
-
 					int method_last_index = 0;
 
 					method _method = extract_method(buffer, BUFFER_SIZE, &method_last_index);
-
-					cout << "method = " << _method << endl;
 
 					if(_method == UNKNOWN) {
 						cout << "Incorrect method!" << endl;
@@ -374,10 +371,6 @@ int main() {
 					extract_route(buffer, BUFFER_SIZE, &method_last_index, &route_begin_index, &route_end_index);
 
 					http_version _http_version =  extract_http_version(buffer, BUFFER_SIZE, &route_end_index);
-
-					cout << "_http_version = " << _http_version << endl;
-
-					cout << "fd " << fd << " all ok" << endl;
 
 					char * file_path = extract_file_path(buffer, &route_begin_index, &route_end_index);
 
@@ -435,7 +428,6 @@ int main() {
 							if(strcmp(file_path, route_calc) != 0) {
 								send(fd, header_404, strlen(header_404), MSG_NOSIGNAL);
 							} else {
-								cout << "Calculator" << endl;
 
 								int body_begin_index = -1;
 
@@ -447,8 +439,6 @@ int main() {
 								} else {
 
 									int calc_result = calc(buffer, &body_begin_index);
-
-									cout << "calc_result = " << calc_result << endl;
 
 									string json_result = "{\n\t\"result\": " + to_string(calc_result) + "\n}";
 
