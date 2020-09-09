@@ -23,6 +23,13 @@ const auto processor_count = std::thread::hardware_concurrency();
 
 static std::ofstream log (LOG_FILE);
 
+struct global_args_t
+{
+	string host;
+	int port;
+	string directory;
+} global_args;
+
 int children = 0;
 
 void writePid(pid_t pid) {
@@ -121,7 +128,6 @@ int masterProcess() {
 		handle_error("Reuse addr error");
 	}
 
-
 	while(1) {
 
 		if(children < processor_count) {
@@ -179,21 +185,21 @@ int main(int argc, char *argv[]) {
 	cout << "WebServer " << VERSION << " starting..." << endl;
 	cout << "***************************" << endl;
 	int key = 0;
-	const char *host = "localhost";
-	int port = 11777;
-	const char *directory = "/tmp/";
+	global_args.host = "localhost";
+	global_args.port = 11777;
+	global_args.directory = "/tmp/";
 
 	if(argc > 1) {
 		while( (key = getopt(argc, argv, "h:p:d:")) != -1 ) {
 			switch(key) {
 				case 'h':
-					host = optarg;
+					global_args.host = string(optarg);
 					break;
 				case 'p':
-					port = atoi(optarg);
+					global_args.port = atoi(optarg);
 					break;
 				case 'd':
-					directory = optarg;
+					global_args.directory = string(optarg);
 					break;
 				case '?':
 					cerr << "Unknown key" << endl;
@@ -201,9 +207,9 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
-	cout << "host = " << host << endl;
-	cout << "port = " << port << endl;
-	cout << "directory = " << directory << endl;
+	cout << "host = " << global_args.host << endl;
+	cout << "port = " << global_args.port << endl;
+	cout << "directory = " << global_args.directory << endl;
 
 	pid_t launcher_pid = getpid();
 
