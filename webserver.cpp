@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -15,9 +16,8 @@
 #define VERSION "0.4.2"
 #define LOG_FILE "webserver.log"
 #define PID_FILE "webserver.pid"
-
-#define handle_error(msg) \
-	do { log << msg; exit(EXIT_FAILURE); } while (0)
+#define MAX_EVENTS 32
+#define BUFFER_SIZE 4096
 
 using namespace std;
 
@@ -94,7 +94,7 @@ int workerProcess(int socket) {
 	close(STDERR_FILENO);
 
 	while (1) {
-		log << "Worker " << getpid() << " is alive" << endl;
+		// log << "Worker " << getpid() << " is alive" << endl;
 		usleep(5 * 1000 * 1000);
 	}
 
@@ -120,6 +120,8 @@ int masterProcess() {
 
 	log << "Processor count: " << processor_count << endl;
 
+	log << "SOMAXCONN: " << SOMAXCONN << endl;
+
 	writePid(master_pid);
 
 	struct sigaction act;
@@ -136,28 +138,53 @@ int masterProcess() {
 
 	int flag = 1;
 	if (setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)) == -1) {
-		handle_error("Reuse addr error");
+		log << "Reuse addr error: " << errno << endl;
+		log << strerror(errno) << endl;
+	} else {
+		log << "Reuse addr: OK" << endl;
 	}
+
+	log << "ip: " << global_args.host << endl;
+	log << "port: " << global_args.port << endl;
 
 	struct sockaddr_in SockAddr;
 	SockAddr.sin_family = AF_INET;
 	SockAddr.sin_port = htons(global_args.port);
-	SockAddr.sin_addr.s_addr = htonl(inet_addr(global_args.host.c_str()));
+	if(global_args.host.compare("localhost") == 0) {
+		log << "localhost => 127.0.0.1" << endl;
+		SockAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	} else {
+		SockAddr.sin_addr.s_addr = inet_addr(global_args.host.c_str());
+	}
 
 	if(::bind(master_socket, (struct sockaddr *)(&SockAddr), sizeof(SockAddr)) == -1) {
-		handle_error("Bind error");
+		log << "Bind error: " << errno << endl;
+		log << strerror(errno) << endl;
+		exit(EXIT_FAILURE);
 	} else {
 		log << "Bind: OK" << endl;
 	}
 
 	set_nonblock(master_socket);
 
-	log << "SOMAXCONN = " << SOMAXCONN << endl;
-	listen(master_socket, SOMAXCONN);
+	if(listen(master_socket, SOMAXCONN) == -1) {
+		log << "Listen error: " << errno << endl;
+		log << strerror(errno) << endl;
+		exit(EXIT_FAILURE);
+	} else {
+		log << "Listen: OK" << endl;
+	}
+
+	int epoll = epoll_create1(0);
+
+	struct epoll_event event;
+	event.data.fd = master_socket;
+	event.events = EPOLLIN;
+	epoll_ctl(epoll, EPOLL_CTL_ADD, master_socket, &event);
 
 	while(1) {
 
-		if(children < processor_count) {
+		while(children < processor_count) {
 			usleep(0.5 * 1000 * 1000);
 
 			int sv[2];
@@ -190,15 +217,19 @@ int masterProcess() {
 				}
 			}
 			
-		} else {
-			log << "Master " << getpid() << " is waiting for signal " << endl;
-			usleep(5 * 1000 * 1000);
-
-			// waitpid(-1, NULL, 0);
 		}
 
-		log << "children = " << children << endl;
-		usleep(1 * 1000 * 1000);
+		struct epoll_event events[MAX_EVENTS];
+		log << "wait events..." << endl; 
+		int new_event_count = epoll_wait(epoll, events, MAX_EVENTS, -1);
+		log << "new_event_count = " << new_event_count << endl;
+
+		for(int ei = 0; ei < new_event_count; ei++) {
+			int fd = events[ei].data.fd;
+			if(fd == master_socket) {
+				cout << "New client connection..." << endl;
+			}
+		}
 
 	}
 
@@ -212,7 +243,7 @@ int main(int argc, char *argv[]) {
 	cout << "WebServer " << VERSION << " starting..." << endl;
 	cout << "***************************" << endl;
 	int key = 0;
-	global_args.host = "localhost";
+	global_args.host = "127.0.0.1";
 	global_args.port = 11777;
 	global_args.directory = "/tmp/";
 
