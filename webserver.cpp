@@ -148,8 +148,10 @@ int masterProcess() {
 	log << "port: " << global_args.port << endl;
 
 	struct sockaddr_in SockAddr;
+	
 	SockAddr.sin_family = AF_INET;
 	SockAddr.sin_port = htons(global_args.port);
+
 	if(global_args.host.compare("localhost") == 0) {
 		log << "localhost => 127.0.0.1" << endl;
 		SockAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -228,6 +230,15 @@ int masterProcess() {
 			int fd = events[ei].data.fd;
 			if(fd == master_socket) {
 				cout << "New client connection..." << endl;
+				int slave_socket = accept(master_socket, 0, 0);
+				cout << "Connection accepted: " << slave_socket << endl;
+				set_nonblock(slave_socket);
+
+				struct epoll_event event;
+				event.data.fd = slave_socket;
+				event.events = EPOLLIN;
+
+				epoll_ctl(epoll, EPOLL_CTL_ADD, slave_socket, &event);
 			}
 		}
 
