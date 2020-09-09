@@ -1,21 +1,23 @@
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <fstream>
 #include <iostream>
-#include <unistd.h>
+#include <netinet/in.h>
 #include <signal.h>
+#include <string.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <fstream>
-#include <time.h>
 #include <thread>
-#include <string.h>
+#include <time.h>
+#include <unistd.h>
 
 #define VERSION "0.4.2"
 #define LOG_FILE "webserver.log"
 #define PID_FILE "webserver.pid"
 
 #define handle_error(msg) \
-	do { perror(msg); exit(EXIT_FAILURE); } while (0)
+	do { log << msg; exit(EXIT_FAILURE); } while (0)
 
 using namespace std;
 
@@ -55,7 +57,6 @@ void demonize() {
 	close(STDERR_FILENO);
 }
 
-
 void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
 	log << "Master caught signal: " << strsignal(sig) << endl;
 
@@ -70,10 +71,21 @@ void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
 	}
 }
 
+int set_nonblock(int fd) {
+	int flags;
+	#if defined(O_NONBLOCK)
+		if(-1 == (flags = fcntl(fd, F_GETFL, 0)))
+			flags = 0;
+		return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+	#else
+		flags = 1;
+		return ioctl(fd, FIOBIO, &flags);
+	#endif
+}
+
 /*
 	WORKER
 */
-
 int workerProcess(int socket) {
 	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << ". Socket = " << socket << endl;
 
@@ -92,7 +104,6 @@ int workerProcess(int socket) {
 /*
 	MASTER
 */
-
 int masterProcess() {
 
 	pid_t master_pid = getpid();
@@ -127,6 +138,22 @@ int masterProcess() {
 	if (setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)) == -1) {
 		handle_error("Reuse addr error");
 	}
+
+	struct sockaddr_in SockAddr;
+	SockAddr.sin_family = AF_INET;
+	SockAddr.sin_port = htons(global_args.port);
+	SockAddr.sin_addr.s_addr = htonl(inet_addr(global_args.host.c_str()));
+
+	if(::bind(master_socket, (struct sockaddr *)(&SockAddr), sizeof(SockAddr)) == -1) {
+		handle_error("Bind error");
+	} else {
+		log << "Bind: OK" << endl;
+	}
+
+	set_nonblock(master_socket);
+
+	log << "SOMAXCONN = " << SOMAXCONN << endl;
+	listen(master_socket, SOMAXCONN);
 
 	while(1) {
 
