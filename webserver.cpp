@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <fstream>
 #include <time.h>
 #include <thread>
@@ -12,6 +13,9 @@
 #define VERSION "0.4.2"
 #define LOG_FILE "webserver.log"
 #define PID_FILE "webserver.pid"
+
+#define handle_error(msg) \
+	do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
 using namespace std;
 
@@ -104,11 +108,19 @@ int masterProcess() {
 	act.sa_sigaction = masterSignalHandler;
 	act.sa_flags = SA_SIGINFO;
 
-	int res = sigaction(SIGCHLD, &act, NULL);
-
-	cout << "res = " << res << endl;
+	if(sigaction(SIGCHLD, &act, NULL) == -1) {
+		log << "Error of sigaction SIGCHLD" << endl;
+	}
  
 	pid_t pid;
+
+	int master_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	int flag = 1;
+	if (setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)) == -1) {
+		handle_error("Reuse addr error");
+	}
+
 
 	while(1) {
 
