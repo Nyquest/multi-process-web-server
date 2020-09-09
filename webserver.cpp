@@ -25,14 +25,15 @@ const auto processor_count = std::thread::hardware_concurrency();
 
 static std::ofstream log (LOG_FILE);
 
-struct global_args_t
-{
+struct global_args_t {
 	string host;
 	int port;
 	string directory;
 } global_args;
 
-int children = 0;
+struct master_vars_t {
+	int children;
+} master_vars;
 
 void writePid(pid_t pid) {
 	FILE *f;
@@ -66,7 +67,7 @@ void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
 		log << "SIGCHLD caught from Process #" << si->si_pid << endl;
 		while((pid = waitpid(-1, &status, WNOHANG)) > 0) {
 			log << "Child " << pid << " terminated with status " << status << endl;
-			--children;
+			--master_vars.children;
 		}
 	}
 }
@@ -81,6 +82,49 @@ int set_nonblock(int fd) {
 		flags = 1;
 		return ioctl(fd, FIOBIO, &flags);
 	#endif
+}
+
+ssize_t sock_fd_write(int sock, void *buf, ssize_t buflen, int fd) {
+	ssize_t size;
+	struct msghdr msg;
+	struct iovec iov;
+
+	union {
+		struct cmsghdr cmsghdr;
+		char control[CMSG_SPACE(sizeof(int))];
+	} cmsgu;
+
+	struct cmsghdr * cmsg;
+
+	iov.iov_base = buf;
+	iov.iov_len = buflen;
+
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	if(fd != -1) {
+		msg.msg_control = cmsgu.control;
+		msg.msg_controllen = sizeof(cmsgu.control);
+		cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
+		log << "Passing fd: " << fd << endl;
+		*((int *)CMSG_DATA(cmsg)) = fd;
+	} else {
+		msg.msg_control = NULL;
+		msg.msg_namelen = 0;
+		log << "Not passing fd" << endl;
+	}
+
+	size = sendmsg(sock, &msg, 0); 
+	if(size == -1) {
+		log << "Sendmsg error: " << errno << endl;
+		log << strerror(errno) << endl;
+	}
+	return size;
 }
 
 /*
@@ -109,6 +153,8 @@ int masterProcess() {
 	pid_t master_pid = getpid();
 
 	time_t my_time = time(NULL);
+
+	master_vars.children = 0;
 
 	log << "------------------------" << endl;
 	log << "Master " << VERSION << " starting..." << endl;
@@ -148,7 +194,7 @@ int masterProcess() {
 	log << "port: " << global_args.port << endl;
 
 	struct sockaddr_in SockAddr;
-	
+
 	SockAddr.sin_family = AF_INET;
 	SockAddr.sin_port = htons(global_args.port);
 
@@ -186,7 +232,7 @@ int masterProcess() {
 
 	while(1) {
 
-		while(children < processor_count) {
+		while(master_vars.children < processor_count) {
 			usleep(0.5 * 1000 * 1000);
 
 			int sv[2];
@@ -200,7 +246,7 @@ int masterProcess() {
 			log << "socketpair: " << sv[0] << " and " << sv[1] << endl;
 
 			pid = fork();
-			++children;
+			++master_vars.children;
 
 			switch(pid) {
 				case -1: {
@@ -239,6 +285,8 @@ int masterProcess() {
 				event.events = EPOLLIN;
 
 				epoll_ctl(epoll, EPOLL_CTL_ADD, slave_socket, &event);
+			} else {
+				//ssize_t size = sock_fd_write()
 			}
 		}
 
