@@ -29,7 +29,8 @@
 2) GET http://localhost:12345/index.html
 3) GET http://localhost:12345/index.html?random=124
 4) GET http://localhost:12345/js/scritps.js
-5) POST http://localhost:12345/calc
+5) GET http://localhost:12345/img/logo.png
+6) POST http://localhost:12345/calc
 
 `{
     "formula": "123+456"
