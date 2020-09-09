@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <netinet/in.h>
 #include <signal.h>
 #include <string.h>
@@ -33,6 +34,7 @@ struct global_args_t {
 
 struct master_vars_t {
 	int children;
+	std::map<pid_t, int> socket_map;
 } master_vars;
 
 void writePid(pid_t pid) {
@@ -131,7 +133,7 @@ ssize_t sock_fd_write(int sock, void *buf, ssize_t buflen, int fd) {
 	WORKER
 */
 int workerProcess(int socket) {
-	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << ". Socket = " << socket << endl;
+	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << ". Reading socket = " << socket << endl;
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
@@ -232,6 +234,8 @@ int masterProcess() {
 
 	while(1) {
 
+		bool fork_created = false;
+
 		while(master_vars.children < processor_count) {
 			usleep(0.5 * 1000 * 1000);
 
@@ -242,8 +246,6 @@ int masterProcess() {
 				log << "Can't create socketpair" << endl;
 				continue;
 			}
-
-			log << "socketpair: " << sv[0] << " and " << sv[1] << endl;
 
 			pid = fork();
 			++master_vars.children;
@@ -261,11 +263,21 @@ int masterProcess() {
 				}
 				default: {
 					close(sv[1]);
-					log << "Master socket " << sv[0] << endl;
+					master_vars.socket_map.insert(make_pair(pid, sv[0]));
+					fork_created = true;
 				}
 			}
 			
 		}
+
+		if(fork_created) {
+			std::map<pid_t, int>::iterator it = master_vars.socket_map.begin();
+			while(it != master_vars.socket_map.end()) {
+				log << "pid:" << it->first << "=writing_socket:" << it->second << endl;
+				it++;
+			}
+		}
+
 
 		struct epoll_event events[MAX_EVENTS];
 		log << "wait events..." << endl; 
