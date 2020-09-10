@@ -131,6 +131,59 @@ ssize_t sock_fd_write(int sock, void *buf, ssize_t buflen, int fd) {
 	return size;
 }
 
+ssize_t sock_fd_read(int sock, void * buf, ssize_t bufsize, int *fd) {
+	ssize_t size;
+
+	if(fd) {
+		struct msghdr msg;
+		struct iovec iov;
+
+		union {
+			struct cmsghdr cmsghdr;
+			char control[CMSG_SPACE(sizeof(int))];
+		} cmsgu;
+
+		struct cmsghdr * cmsg;
+
+		iov.iov_base = buf;
+		iov.iov_len = bufsize;
+
+		msg.msg_name = NULL;
+		msg.msg_namelen = 0;
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+
+		msg.msg_control = cmsgu.control;
+		msg.msg_controllen = sizeof(cmsgu.control);
+
+		size = recvmsg(sock, &msg, 0);
+
+		if(cmsg->cmsg_len == CMSG_LEN(sizeof(int))) {
+			if(cmsg->cmsg_level != SOL_SOCKET) {
+				log << "Invalid cmsg_level " << cmsg->cmsg_level << endl;
+				exit(1);
+			}
+			if(cmsg->cmsg_type != SCM_RIGHTS) {
+				log << "Invalid cmsg_type " << cmsg->cmsg_type << endl;
+				exit(1);
+			}
+			*fd = *((int *)CMSG_DATA(cmsg));
+			log << "Received fd" << *fd << endl;
+		} else {
+			*fd = -1;
+		}
+
+	} else {
+		size = read(sock, buf, bufsize);
+		if(size < 0) {
+			log << "Can't read from reading socket" << endl;
+			exit(1);
+		}
+	}
+
+	return size;
+}
+
 /*
 	WORKER
 */
@@ -249,7 +302,6 @@ int masterProcess() {
 			int sv[2];
 
 			if(socketpair(AF_LOCAL, SOCK_STREAM, 0, sv) < 0) {
-				perror("socketpair");
 				log << "Can't create socketpair" << endl;
 				continue;
 			}
