@@ -287,7 +287,7 @@ int masterProcess() {
 	event.events = EPOLLIN;
 	epoll_ctl(epoll, EPOLL_CTL_ADD, master_socket, &event);
 
-	int writing_socket_index = 0;
+	int round_robin_index = 0;
 
 	char required_buf[1];
 	required_buf[0] = 'y';
@@ -363,11 +363,11 @@ int masterProcess() {
 				epoll_ctl(epoll, EPOLL_CTL_ADD, slave_socket, &event);
 			} else {
 				if(master_vars.sockets.size() > 0) {
-					while(writing_socket_index > master_vars.sockets.size()) {
-						writing_socket_index -= master_vars.sockets.size();
+					while(round_robin_index > master_vars.sockets.size()) {
+						round_robin_index -= master_vars.sockets.size();
 					}
-					ssize_t size = sock_fd_write(master_vars.sockets[writing_socket_index], required_buf, 1, fd);
-					++writing_socket_index;
+					ssize_t size = sock_fd_write(master_vars.sockets[round_robin_index], required_buf, 1, fd);
+					++round_robin_index;
 				} else {
 					log << "No socketpairs!" << endl;
 				}
