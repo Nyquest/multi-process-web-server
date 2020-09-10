@@ -23,7 +23,8 @@
 
 using namespace std;
 
-const auto processor_count = std::thread::hardware_concurrency();
+// const auto processor_count = std::thread::hardware_concurrency();
+const auto processor_count = 2;
 
 static std::ofstream log (LOG_FILE);
 
@@ -88,7 +89,7 @@ int set_nonblock(int fd) {
 	#endif
 }
 
-ssize_t sock_fd_write(int sock, void *buf, ssize_t buflen, int fd) {
+ssize_t sock_fd_write(int socket, void *buf, ssize_t buflen, int fd) {
 	ssize_t size;
 	struct msghdr msg;
 	struct iovec iov;
@@ -115,23 +116,26 @@ ssize_t sock_fd_write(int sock, void *buf, ssize_t buflen, int fd) {
 		cmsg->cmsg_len = CMSG_LEN(sizeof(int));
 		cmsg->cmsg_level = SOL_SOCKET;
 		cmsg->cmsg_type = SCM_RIGHTS;
-		log << "Passing fd: " << fd << endl;
+		log << "[" << socket << "] ---> " << fd << endl;
 		*((int *)CMSG_DATA(cmsg)) = fd;
 	} else {
 		msg.msg_control = NULL;
-		msg.msg_namelen = 0;
+		msg.msg_controllen = 0;
 		log << "Not passing fd" << endl;
 	}
 
-	size = sendmsg(sock, &msg, 0); 
+	size = sendmsg(socket, &msg, 0); 
 	if(size == -1) {
 		log << "Sendmsg error: " << errno << endl;
 		log << strerror(errno) << endl;
+	} else {
+		log << "sendmsg: OK. Socket " << socket << ", fd " << fd << " with size " << size << endl;
 	}
 	return size;
 }
 
-ssize_t sock_fd_read(int sock, void * buf, ssize_t bufsize, int *fd) {
+ssize_t sock_fd_read(int socket, void * buf, ssize_t bufsize, int *fd) {
+	log << "sock_fd_read " << socket << endl;
 	ssize_t size;
 
 	if(fd) {
@@ -156,7 +160,15 @@ ssize_t sock_fd_read(int sock, void * buf, ssize_t bufsize, int *fd) {
 		msg.msg_control = cmsgu.control;
 		msg.msg_controllen = sizeof(cmsgu.control);
 
-		size = recvmsg(sock, &msg, 0);
+		size = recvmsg(socket, &msg, 0);
+
+		if(size < 0) {
+			log << "recvmsg error: " << errno << endl;
+			log << strerror(errno) << endl;
+			exit(1);
+		}
+
+		cmsg = CMSG_FIRSTHDR(&msg);
 
 		if(cmsg->cmsg_len == CMSG_LEN(sizeof(int))) {
 			if(cmsg->cmsg_level != SOL_SOCKET) {
@@ -168,13 +180,15 @@ ssize_t sock_fd_read(int sock, void * buf, ssize_t bufsize, int *fd) {
 				exit(1);
 			}
 			*fd = *((int *)CMSG_DATA(cmsg));
-			log << "Received fd" << *fd << endl;
+			log << "Received fd " << *fd << endl;
 		} else {
+			log << "cmsg->cmsg_len = " << cmsg->cmsg_len << endl;
+			log << "CMSG_LEN(sizeof(int)) = " << CMSG_LEN(sizeof(int)) << endl; 
 			*fd = -1;
 		}
 
 	} else {
-		size = read(sock, buf, bufsize);
+		size = read(socket, buf, bufsize);
 		if(size < 0) {
 			log << "Can't read from reading socket" << endl;
 			exit(1);
@@ -188,15 +202,46 @@ ssize_t sock_fd_read(int sock, void * buf, ssize_t bufsize, int *fd) {
 	WORKER
 */
 int workerProcess(int socket) {
-	log << "Worker with PID " << getpid() << " created. Parent pid = " << getppid() << ". Reading socket = " << socket << endl;
+
+	pid_t pid = getpid();
+
+	log << "Worker with PID " << pid << " created. Parent pid = " << getppid() << ". Reading socket = " << socket << endl;
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
 
+	int fd;
+	char buf[16];
+	ssize_t size;
+
 	while (1) {
-		// log << "Worker " << getpid() << " is alive" << endl;
-		usleep(5 * 1000 * 1000);
+		log << "PID " << pid << ": wait fd..." << endl;
+		size = sock_fd_read(socket, buf, sizeof(buf), &fd);
+		log << "PID " << pid << ": read from fd " << fd << ", size " << size << endl; 
+		
+		if(size <= 0){
+			break;
+		}
+		
+		if(fd != -1) {
+
+			static char buffer[BUFFER_SIZE];
+			int recv_result = recv(fd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
+
+			log << "recv_result for fd " << fd << " = " << recv_result << endl;
+
+			if(recv_result == 0 && (errno != EAGAIN)) {
+				log << "Close " <<  fd << endl;
+				shutdown(fd, SHUT_RDWR);
+				close(fd);
+			} else {
+				write(fd, buffer, recv_result);
+				shutdown(fd, SHUT_RDWR);
+				close(fd);
+			}
+
+		}
 	}
 
 	return 0;
@@ -290,7 +335,7 @@ int masterProcess() {
 	int round_robin_index = 0;
 
 	char required_buf[1];
-	required_buf[0] = 'y';
+	required_buf[0] = '1';
 
 	while(1) {
 
@@ -351,9 +396,9 @@ int masterProcess() {
 		for(int ei = 0; ei < new_event_count; ei++) {
 			int fd = events[ei].data.fd;
 			if(fd == master_socket) {
-				cout << "New client connection..." << endl;
+				log << "New client connection..." << endl;
 				int slave_socket = accept(master_socket, 0, 0);
-				cout << "Connection accepted: " << slave_socket << endl;
+				log << "Connection accepted: " << slave_socket << endl;
 				set_nonblock(slave_socket);
 
 				struct epoll_event event;
@@ -363,9 +408,10 @@ int masterProcess() {
 				epoll_ctl(epoll, EPOLL_CTL_ADD, slave_socket, &event);
 			} else {
 				if(master_vars.sockets.size() > 0) {
-					while(round_robin_index > master_vars.sockets.size()) {
+					while(round_robin_index >= master_vars.sockets.size()) {
 						round_robin_index -= master_vars.sockets.size();
 					}
+					log << "round_robin_index = " << round_robin_index << ":" << master_vars.sockets[round_robin_index] << endl;
 					ssize_t size = sock_fd_write(master_vars.sockets[round_robin_index], required_buf, 1, fd);
 					++round_robin_index;
 				} else {
