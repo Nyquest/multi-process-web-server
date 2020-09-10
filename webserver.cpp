@@ -13,6 +13,7 @@
 #include <thread>
 #include <time.h>
 #include <unistd.h>
+#include <vector>
 
 #define VERSION "0.4.2"
 #define LOG_FILE "webserver.log"
@@ -35,6 +36,7 @@ struct global_args_t {
 struct master_vars_t {
 	int children;
 	std::map<pid_t, int> socket_map;
+	vector<int> sockets;
 } master_vars;
 
 void writePid(pid_t pid) {
@@ -264,6 +266,7 @@ int masterProcess() {
 				default: {
 					close(sv[1]);
 					master_vars.socket_map.insert(make_pair(pid, sv[0]));
+					master_vars.sockets.push_back(sv[0]);
 					fork_created = true;
 				}
 			}
@@ -275,6 +278,10 @@ int masterProcess() {
 			while(it != master_vars.socket_map.end()) {
 				log << "pid:" << it->first << "=writing_socket:" << it->second << endl;
 				it++;
+			}
+
+			for(int i = 0; i < master_vars.sockets.size(); ++i) {
+				log << i << ") " << master_vars.sockets[i] << endl;
 			}
 		}
 
