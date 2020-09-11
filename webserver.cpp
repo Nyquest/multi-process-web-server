@@ -507,7 +507,11 @@ void http_request_handler(int fd) {
 
 				switch(_content_type) {
 					case HTML: {
-						send(fd, header_200_text_html, strlen(header_200_text_html), MSG_NOSIGNAL);
+
+						string html_response =  "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\nContent-Length: " + to_string(content.size()) + "\n\n";
+
+						send(fd, html_response.c_str(), html_response.size(), MSG_NOSIGNAL);
+
 						break;
 					}
 					case JS: {
