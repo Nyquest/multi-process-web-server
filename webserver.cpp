@@ -451,6 +451,11 @@ void http_request_handler(int fd) {
 
 	log << "PID " << pid << ": " << "fd = " << fd << ", recv_result = " << recv_result << ", errno = " << errno << endl;
 
+	if(recv_result < 0) {
+		close(fd);
+		return;
+	}
+
 	if(recv_result == 0 && (errno != EAGAIN)) {
 		log << "FD " <<  fd << " close" << endl;
 		shutdown(fd, SHUT_RDWR);
@@ -508,7 +513,7 @@ void http_request_handler(int fd) {
 				switch(_content_type) {
 					case HTML: {
 
-						string html_response =  "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\nContent-Length: " + to_string(content.size()) + "\n\n";
+						string html_response =  "HTTP/1.0 200 OK\r\nServer: MultiProcessWebServer v0.1\r\nContent-Type: text/html\r\nContent-Length: " + to_string(content.size()) + "\r\n\r\n";
 
 						log << "response: " << html_response << endl;
 
