@@ -1,0 +1,12 @@
+phantom:
+  address: host.docker.internal:11777
+  ssl: false
+  load_profile:
+    load_type: rps
+#    schedule: step(10, 100, 10, 10)
+    schedule: const(30, 1m)
+  uris:
+    - /
+    - /index.html
+    - /img/logo.png
+    - /js/script.js
