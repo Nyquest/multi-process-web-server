@@ -147,6 +147,7 @@ char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_i
 	int index = *route_end_index;
 
 	for(int i = *route_begin_index; i < *route_end_index; ++i) {
+		log << "i = " << i << endl;
 		if(buffer[i] == '?') {
 			index = i;
 			break;
@@ -158,7 +159,7 @@ char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_i
 	for(i = *route_begin_index; i < index; ++i) {
 		filePath[i - *route_begin_index] = buffer[i];
 	}
-	filePath[i] = '\0';
+	filePath[i - *route_begin_index] = '\0';
 	return filePath;
 }
 
@@ -422,7 +423,7 @@ ssize_t sock_fd_read(int socket, void * buf, ssize_t bufsize, int *fd) {
 */
 
 void http_request_handler(int fd) {
-	log << "FD " << fd << ": http_request_handler";
+	log << "FD " << fd << ": http_request_handler" << endl;
 
 	pid_t pid = getpid();
 

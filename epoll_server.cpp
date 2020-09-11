@@ -102,7 +102,7 @@ char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_i
 	for(i = *route_begin_index; i < index; ++i) {
 		filePath[i - *route_begin_index] = buffer[i];
 	}
-	filePath[i] = '\0';
+	filePath[i - *route_begin_index] = '\0';
 	return filePath;
 }
 
