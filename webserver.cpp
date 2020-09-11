@@ -23,8 +23,7 @@
 
 using namespace std;
 
-// const auto processor_count = std::thread::hardware_concurrency();
-const auto processor_count = 2;
+const auto processor_count = std::thread::hardware_concurrency();
 
 char const *header_200_text_html = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Type: text/html\n\n";
 char const *header_200_image_png = "HTTP/1.0 200 OK\nServer: MultiProcessWebServer v0.1\nContent-Disposition: inline\nContent-Type: image/png\n\n";
@@ -91,7 +90,28 @@ void masterSignalHandler(int sig, siginfo_t *si, void *ptr) {
 		log << "SIGCHLD caught from Process #" << si->si_pid << endl;
 		while((pid = waitpid(-1, &status, WNOHANG)) > 0) {
 			log << "Child " << pid << " terminated with status " << status << endl;
-			--master_vars.children;
+
+			std::map<pid_t, int>::iterator it;
+			it = master_vars.socket_map.find(pid);
+			if(it != master_vars.socket_map.end()) {
+				master_vars.socket_map.erase(it);
+				log << "Writing socket " << it->second << " deleted from map" << endl;
+
+
+				int index = -1;
+				for(int i = 0; i < master_vars.sockets.size(); ++i) {
+					if(master_vars.sockets[i] == it->second) {
+						index = i;
+						break;
+					}
+				}
+
+				if(index != -1) {
+					master_vars.sockets.erase(master_vars.sockets.begin() + index);
+					log << "Writing socket " << it->second << " deleted from vector" << endl;
+				}
+				--master_vars.children;
+			}
 		}
 	}
 }
@@ -147,7 +167,6 @@ char * extract_file_path(char * buffer, int *route_begin_index, int *route_end_i
 	int index = *route_end_index;
 
 	for(int i = *route_begin_index; i < *route_end_index; ++i) {
-		log << "i = " << i << endl;
 		if(buffer[i] == '?') {
 			index = i;
 			break;
