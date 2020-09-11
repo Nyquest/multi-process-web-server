@@ -415,6 +415,12 @@ int masterProcess() {
 					continue;
 				}
 
+				if(events[ei].events & EPOLLERR) {
+					log << "FD " << fd << ": EPOLLERR" << endl;
+					close(fd);
+					continue;
+				}
+
 				if(master_vars.sockets.size() > 0) {
 					while(round_robin_index >= master_vars.sockets.size()) {
 						round_robin_index -= master_vars.sockets.size();
