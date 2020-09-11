@@ -10,7 +10,7 @@ echo
 echo BUILD - OK
 echo
 
-./webserver -h 0.0.0.0 -p 11777 -d "/tmp/"
+./webserver -h 0.0.0.0 -p 11777 -d "/usr/src/multi-process-web-server/static-site"
 if [ $? -ne 0 ]; then
         echo START - FAILED
         exit 1
