@@ -196,6 +196,29 @@ ssize_t sock_fd_read(int socket, void * buf, ssize_t bufsize, int *fd) {
 	return size;
 }
 
+void http_request_handler(int fd) {
+	log << "FD " << fd << ": http_request_handler";
+
+	pid_t pid = getpid();
+
+	static char buffer[BUFFER_SIZE];
+	int recv_result = recv(fd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
+
+	log << "PID " << pid << ": " << "fd = " << fd << ", recv_result = " << recv_result << ", errno = " << errno << endl;
+
+	if(recv_result == 0 && (errno != EAGAIN)) {
+		log << "FD " <<  fd << " close" << endl;
+		shutdown(fd, SHUT_RDWR);
+		close(fd);
+		return;
+	}
+
+	write(fd, buffer, recv_result);
+	log << "FD " <<  fd << " close" << endl;
+	shutdown(fd, SHUT_RDWR);
+	close(fd);
+}
+
 /*
 	WORKER
 */
@@ -223,23 +246,7 @@ int workerProcess(int socket) {
 		}
 		
 		if(fd != -1) {
-
-			static char buffer[BUFFER_SIZE];
-			int recv_result = recv(fd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
-
-			log << "PID " << pid << ": " << "fd = " << fd << ", recv_result = " << recv_result << ", errno = " << errno << endl;
-
-			if(recv_result == 0 && (errno != EAGAIN)) {
-				log << "FD " <<  fd << " close" << endl;
-				shutdown(fd, SHUT_RDWR);
-				close(fd);
-			} else {
-				write(fd, buffer, recv_result);
-				log << "FD " <<  fd << " close" << endl;
-				shutdown(fd, SHUT_RDWR);
-				close(fd);
-			}
-
+			http_request_handler(fd);
 		}
 	}
 
