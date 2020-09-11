@@ -90,6 +90,7 @@ int set_nonblock(int fd) {
 }
 
 ssize_t sock_fd_write(int socket, void *buf, ssize_t buflen, int fd) {
+	log << "sock_fd_write: socket = " << socket << ", fd = " << fd << endl; 
 	ssize_t size;
 	struct msghdr msg;
 	struct iovec iov;
@@ -116,7 +117,6 @@ ssize_t sock_fd_write(int socket, void *buf, ssize_t buflen, int fd) {
 		cmsg->cmsg_len = CMSG_LEN(sizeof(int));
 		cmsg->cmsg_level = SOL_SOCKET;
 		cmsg->cmsg_type = SCM_RIGHTS;
-		log << "[" << socket << "] ---> " << fd << endl;
 		*((int *)CMSG_DATA(cmsg)) = fd;
 	} else {
 		msg.msg_control = NULL;
@@ -135,7 +135,6 @@ ssize_t sock_fd_write(int socket, void *buf, ssize_t buflen, int fd) {
 }
 
 ssize_t sock_fd_read(int socket, void * buf, ssize_t bufsize, int *fd) {
-	log << "sock_fd_read " << socket << endl;
 	ssize_t size;
 
 	if(fd) {
@@ -180,7 +179,6 @@ ssize_t sock_fd_read(int socket, void * buf, ssize_t bufsize, int *fd) {
 				exit(1);
 			}
 			*fd = *((int *)CMSG_DATA(cmsg));
-			log << "Received fd " << *fd << endl;
 		} else {
 			log << "cmsg->cmsg_len = " << cmsg->cmsg_len << endl;
 			log << "CMSG_LEN(sizeof(int)) = " << CMSG_LEN(sizeof(int)) << endl; 
@@ -205,7 +203,7 @@ int workerProcess(int socket) {
 
 	pid_t pid = getpid();
 
-	log << "Worker with PID " << pid << " created. Parent pid = " << getppid() << ". Reading socket = " << socket << endl;
+	log << "PID " << pid << ": reading socket = " << socket << endl;
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
@@ -218,7 +216,7 @@ int workerProcess(int socket) {
 	while (1) {
 		log << "PID " << pid << ": wait fd..." << endl;
 		size = sock_fd_read(socket, buf, sizeof(buf), &fd);
-		log << "PID " << pid << ": read from fd " << fd << ", size " << size << endl; 
+		log << "PID " << pid << ": got fd " << fd << ", size " << size << endl; 
 		
 		if(size <= 0){
 			break;
@@ -229,14 +227,15 @@ int workerProcess(int socket) {
 			static char buffer[BUFFER_SIZE];
 			int recv_result = recv(fd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
 
-			log << "recv_result for fd " << fd << " = " << recv_result << endl;
+			log << "PID " << pid << ": " << "fd = " << fd << ", recv_result = " << recv_result << ", errno = " << errno << endl;
 
 			if(recv_result == 0 && (errno != EAGAIN)) {
-				log << "Close " <<  fd << endl;
+				log << "FD " <<  fd << " close" << endl;
 				shutdown(fd, SHUT_RDWR);
 				close(fd);
 			} else {
 				write(fd, buffer, recv_result);
+				log << "FD " <<  fd << " close" << endl;
 				shutdown(fd, SHUT_RDWR);
 				close(fd);
 			}
@@ -378,7 +377,7 @@ int masterProcess() {
 		if(fork_created) {
 			std::map<pid_t, int>::iterator it = master_vars.socket_map.begin();
 			while(it != master_vars.socket_map.end()) {
-				log << "pid:" << it->first << "=writing_socket:" << it->second << endl;
+				log << "PID " << it->first << ": writing_socket = " << it->second << endl;
 				it++;
 			}
 
@@ -387,8 +386,8 @@ int masterProcess() {
 			}
 		}
 
-
 		struct epoll_event events[MAX_EVENTS];
+		log << endl;
 		log << "wait events..." << endl; 
 		int new_event_count = epoll_wait(epoll, events, MAX_EVENTS, -1);
 		log << "new_event_count = " << new_event_count << endl;
@@ -407,12 +406,22 @@ int masterProcess() {
 
 				epoll_ctl(epoll, EPOLL_CTL_ADD, slave_socket, &event);
 			} else {
+				log << "---------" << endl;
+				log << "FD " << fd << ": events = " << events[ei].events << endl;
+
+				if(events[ei].events & EPOLLHUP) {
+					log << "FD " << fd << ": EPOLLHUP" << endl;
+					close(fd);
+					continue;
+				}
+
 				if(master_vars.sockets.size() > 0) {
 					while(round_robin_index >= master_vars.sockets.size()) {
 						round_robin_index -= master_vars.sockets.size();
 					}
 					log << "round_robin_index = " << round_robin_index << ":" << master_vars.sockets[round_robin_index] << endl;
 					ssize_t size = sock_fd_write(master_vars.sockets[round_robin_index], required_buf, 1, fd);
+					log << "++round_robin_index" << endl;
 					++round_robin_index;
 				} else {
 					log << "No socketpairs!" << endl;
